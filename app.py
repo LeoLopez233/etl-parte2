@@ -717,6 +717,9 @@ def descargar_log_lugares():
 # =============================================================
 # INICIAR EL SERVIDOR
 # =============================================================
+@app.route("/ping")
+def ping():
+    return "OK", 200
 if __name__ == "__main__":
     print("\n" + "=" * 50)
     print("  ETL Parte 2 - Famosos y Lugares")
