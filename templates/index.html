@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ETL Parte 2 — Famosos y Lugares</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#f0f2f5; --white:#fff; --border:#e2e6ea;
+      --text:#1a1d23; --muted:#6c757d;
+      --blue:#2563eb; --blue-h:#1d4ed8; --blue-bg:#eff6ff; --blue-b:#bfdbfe;
+      --green:#16a34a; --green-bg:#f0fdf4; --green-b:#bbf7d0;
+      --red:#dc2626; --red-bg:#fff1f2; --red-b:#fecdd3;
+      --yellow:#d97706; --yellow-bg:#fffbeb; --yellow-b:#fde68a;
+      --purple:#7c3aed; --purple-bg:#f5f3ff; --purple-b:#ddd6fe;
+      --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.08);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    /* ── HEADER ── */
+    .header{background:var(--blue);color:#fff;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+    .header h1{font-size:1.3rem;font-weight:800}
+    .header p{font-size:0.75rem;opacity:.85;margin-top:2px}
+    .header-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:.4rem .9rem;font-size:.72rem;line-height:1.8;text-align:right}
+
+    /* ── TABS ── */
+    .tabs-bar{background:var(--white);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;gap:0}
+    .tab-btn{padding:.9rem 1.5rem;font-size:.88rem;font-weight:600;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;display:flex;align-items:center;gap:.5rem}
+    .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+    .tab-btn:hover:not(.active){color:var(--text)}
+
+    /* ── CONTENIDO ── */
+    .tab-content{display:none;padding:1.5rem 2rem}
+    .tab-content.active{display:block}
+
+    /* ── DB BANNER ── */
+    .db-banner{background:var(--blue-bg);border:1px solid var(--blue-b);border-radius:var(--radius);padding:.8rem 1.2rem;font-size:.8rem;color:#1e40af;margin-bottom:1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .db-pill{background:#dbeafe;border:1px solid #93c5fd;border-radius:20px;padding:2px 10px;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:600}
+
+    /* ── PASOS ── */
+    .steps{display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
+    .step{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;flex:1;min-width:200px;display:flex;gap:.75rem;align-items:flex-start;box-shadow:var(--shadow);transition:all .2s}
+    .step.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+    .step.done{border-color:var(--green);background:var(--green-bg)}
+    .step.pending{opacity:.45}
+    .step-num{width:32px;height:32px;border-radius:50%;background:var(--blue);color:#fff;font-weight:800;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s}
+    .step.done .step-num{background:var(--green)}
+    .step.pending .step-num{background:#9ca3af}
+    .step h3{font-size:.85rem;font-weight:700;margin-bottom:2px}
+    .step p{font-size:.74rem;color:var(--muted);line-height:1.45}
+
+    /* ── GRID ── */
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+    @media(max-width:750px){.grid{grid-template-columns:1fr}}
+
+    /* ── CARD ── */
+    .card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow)}
+    .card-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
+
+    /* ── DROP ZONE ── */
+    .drop-zone{border:2px dashed #cbd5e1;border-radius:10px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:#f8fafc}
+    .drop-zone:hover,.drop-zone.over{border-color:var(--blue);background:var(--blue-bg)}
+    .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .drop-zone h3{font-size:.9rem;font-weight:600;margin-bottom:4px}
+    .drop-zone p{font-size:.76rem;color:var(--muted)}
+    .file-name{margin-top:.6rem;font-size:.8rem;font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:600;display:none}
+
+    /* ── BOTÓN PRINCIPAL ── */
+    .btn-main{width:100%;margin-top:.9rem;padding:.85rem;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .btn-main:hover:not(:disabled){background:var(--blue-h)}
+    .btn-main:disabled{background:#93c5fd;cursor:not-allowed}
+
+    /* ── STATS ── */
+    .stats{display:flex;gap:.75rem;flex-wrap:wrap}
+    .stat{flex:1;min-width:90px;border-radius:10px;padding:.8rem 1rem;text-align:center}
+    .stat.blue{background:var(--blue-bg);border:1px solid var(--blue-b)}
+    .stat.green{background:var(--green-bg);border:1px solid var(--green-b)}
+    .stat.red{background:var(--red-bg);border:1px solid var(--red-b)}
+    .stat.yellow{background:var(--yellow-bg);border:1px solid var(--yellow-b)}
+    .stat-val{font-size:1.7rem;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
+    .stat.blue .stat-val{color:var(--blue)}
+    .stat.green .stat-val{color:var(--green)}
+    .stat.red .stat-val{color:var(--red)}
+    .stat.yellow .stat-val{color:var(--yellow)}
+    .stat-label{font-size:.68rem;color:var(--muted);margin-top:4px;font-weight:500;line-height:1.3}
+
+    /* ── TABLA ── */
+    .table-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:360px;overflow-y:auto;margin-top:.6rem}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:#f8fafc;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:.55rem .8rem;text-align:left;position:sticky;top:0;border-bottom:1px solid var(--border);white-space:nowrap}
+    tbody td{padding:.5rem .8rem;font-size:.8rem;border-bottom:1px solid #f1f5f9;vertical-align:top}
+    tbody td:first-child{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);width:40px}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:hover td{background:#f8fafc}
+    .empty-td{text-align:center;color:var(--muted);padding:2rem!important;font-size:.82rem!important}
+
+    /* ── FLAG CUMPLEAÑOS ── */
+    .flag-si{background:#fef9c3;color:#854d0e;border:1px solid #fde047;border-radius:20px;padding:2px 8px;font-size:.68rem;font-weight:700;white-space:nowrap}
+    .flag-no{color:#9ca3af;font-size:.75rem}
+
+    /* ── LOG ── */
+    .log-wrap{border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.72rem;line-height:1.6;margin-top:.6rem;background:#fafafa}
+    .log-item{padding:.45rem .8rem;border-bottom:1px solid #f1f5f9;display:flex;gap:.5rem;flex-wrap:wrap;align-items:baseline}
+    .log-item:last-child{border-bottom:none}
+    .log-tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.63rem;font-weight:700;flex-shrink:0;white-space:nowrap}
+    .t-dup{background:var(--red-bg);color:var(--red);border:1px solid var(--red-b)}
+    .t-fecha{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-b)}
+    .t-num{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-b)}
+    .t-inv{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb}
+    .t-lugar{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-b)}
+    .log-arr{color:#9ca3af}
+    .log-after{color:var(--green);font-weight:600}
+    .log-empty{padding:1.5rem;text-align:center;color:var(--muted);font-size:.8rem}
+
+    /* ── DESCARGAS ── */
+    .downloads{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem}
+    .btn-dl{flex:1;padding:.6rem .7rem;border-radius:8px;font-size:.78rem;font-weight:600;text-align:center;text-decoration:none;transition:all .15s;pointer-events:none;opacity:.35;border:1.5px solid;font-family:'Inter',sans-serif}
+    .btn-dl.on{pointer-events:auto;opacity:1}
+    .btn-dl.green{color:var(--green);border-color:var(--green);background:var(--green-bg)}
+    .btn-dl.blue{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+    .btn-dl.green.on:hover{background:var(--green);color:#fff}
+    .btn-dl.blue.on:hover{background:var(--blue);color:#fff}
+
+    /* ── ALERTA ÉXITO ── */
+    .alert-ok{display:none;background:var(--green-bg);border:1px solid var(--green-b);border-radius:8px;padding:.8rem 1rem;font-size:.82rem;color:var(--green);font-weight:600;margin-top:.8rem;align-items:center;gap:.5rem}
+
+    /* ── SPINNER ── */
+    .spinner{display:none;width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+
+    /* ── GEOREF ── */
+    .georef{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>🗄️ ETL Parte 2 — Normalización de Datos</h1>
+    <p>Arquitectura y Almacenamiento de Datos · Evaluación 2, Parte 2</p>
+  </div>
+  <div class="header-badge">
+    Docente: Hernán R. Sáez Talavera<br>
+    Sede: Concepción-Talcahuano<br>
+    Motor BD: SQLite
+  </div>
+</div>
+
+<!-- PESTAÑAS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="cambiarTab('famosos',this)">
+    🎭 Ejercicio I — Famosos y Fechas
+  </button>
+  <button class="tab-btn" onclick="cambiarTab('lugares',this)">
+    📍 Ejercicio II — Lugares y Ubicaciones
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     EJERCICIO I — FAMOSOS
+════════════════════════════════════════ -->
+<div class="tab-content active" id="tab-famosos">
+
+  <!-- Banner BD -->
+  <div class="db-banner">
+    <span>🗃️</span>
+    <strong>Tablas SQLite:</strong>
+    <span class="db-pill">FAMOSOS_RAW</span>
+    <span class="db-pill">FAMOSOS_NORM</span>
+    <span class="db-pill">LOG_FAMOSOS</span>
+  </div>
+
+  <!-- Pasos -->
+  <div class="steps">
+    <div class="step active" id="f-step1">
+      <div class="step-num">1</div>
+      <div><h3>Cargar archivo</h3><p>Sube el archivo .TXT con famosos y fechas de nacimiento</p></div>
+    </div>
+    <div class="step pending" id="f-step2">
+      <div class="step-num">2</div>
+      <div><h3>Normalizar</h3><p>Unifica fechas a DD-MM-YYYY, calcula edades y detecta cumpleaños</p></div>
+    </div>
+    <div class="step pending" id="f-step3">
+      <div class="step-num">3</div>
+      <div><h3>Descargar</h3><p>Exporta los datos normalizados en CSV o descarga el log</p></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Izquierda -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+      <div class="card">
+        <div class="card-title">📂 Paso 1 — Cargar Archivo</div>
+        <div class="drop-zone" id="f-drop">
+          <input type="file" id="f-input" accept=".txt,.csv"/>
+          <div style="font-size:2.2rem;margin-bottom:.4rem">📄</div>
+          <h3>Haz clic o arrastra tu archivo</h3>
+          <p>DATOS2026-2.TXT o cualquier archivo compatible</p>
+          <div class="file-name" id="f-filename"></div>
+        </div>
+        <button class="btn-main" id="f-btn" disabled>
+          <div class="spinner" id="f-spinner"></div>
+          <span id="f-btn-text">▶ Normalizar Famosos</span>
+        </button>
+        <div class="alert-ok" id="f-alert">✅ ¡Normalización completada!</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Estadísticas</div>
+        <div class="stats">
+          <div class="stat blue"><div class="stat-val" id="f-raw">–</div><div class="stat-label">Registros originales</div></div>
+          <div class="stat red"><div class="stat-val" id="f-dups">–</div><div class="stat-label">Duplicados eliminados</div></div>
+          <div class="stat yellow"><div class="stat-val" id="f-inv">–</div><div class="stat-label">Fechas no parseables</div></div>
+          <div class="stat green"><div class="stat-val" id="f-ok">–</div><div class="stat-label">Registros finales</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Log de Cambios (LOG_FAMOSOS)</div>
+        <div class="log-wrap" id="f-log"><div class="log-empty">El log aparecerá aquí tras normalizar</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⬇️ Descargar Resultados</div>
+        <div class="downloads">
+          <a class="btn-dl green" href="/descargar/famosos/csv" id="f-dl-csv">📊 FAMOSOS_NORM.csv</a>
+          <a class="btn-dl blue"  href="/descargar/famosos/log" id="f-dl-log">📋 LOG de Cambios</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Derecha: Tabla resultado -->
+    <div class="card" style="align-self:start">
+      <div class="card-title">✅ Resultado — FAMOSOS_NORM</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Fecha Nac.</th>
+              <th>Edad</th>
+              <th>🎂</th>
+            </tr>
+          </thead>
+          <tbody id="f-tbody">
+            <tr><td class="empty-td" colspan="5">Carga un archivo y presiona Normalizar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     EJERCICIO II — LUGARES
+════════════════════════════════════════ -->
+<div class="tab-content" id="tab-lugares">
+
+  <!-- Banner BD -->
+  <div class="db-banner">
+    <span>🗃️</span>
+    <strong>Tablas SQLite:</strong>
+    <span class="db-pill">LUGARES_RAW</span>
+    <span class="db-pill">Lugares</span>
+    <span class="db-pill">Georeferencias</span>
+    <span class="db-pill">Direcciones</span>
+    <span class="db-pill">LOG_LUGARES</span>
+  </div>
+
+  <!-- Pasos -->
+  <div class="steps">
+    <div class="step active" id="l-step1">
+      <div class="step-num">1</div>
+      <div><h3>Cargar archivo</h3><p>Sube el archivo .TXT con lugares separados por punto y coma</p></div>
+    </div>
+    <div class="step pending" id="l-step2">
+      <div class="step-num">2</div>
+      <div><h3>Normalizar</h3><p>Separa en 3 tablas, parsea direcciones y elimina duplicados</p></div>
+    </div>
+    <div class="step pending" id="l-step3">
+      <div class="step-num">3</div>
+      <div><h3>Descargar</h3><p>Exporta los datos normalizados en CSV</p></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Izquierda -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+      <div class="card">
+        <div class="card-title">📂 Paso 1 — Cargar Archivo</div>
+        <div class="drop-zone" id="l-drop">
+          <input type="file" id="l-input" accept=".txt,.csv"/>
+          <div style="font-size:2.2rem;margin-bottom:.4rem">🗺️</div>
+          <h3>Haz clic o arrastra tu archivo</h3>
+          <p>DATOS2026-3.TXT o cualquier archivo compatible</p>
+          <div class="file-name" id="l-filename"></div>
+        </div>
+        <button class="btn-main" id="l-btn" disabled>
+          <div class="spinner" id="l-spinner"></div>
+          <span id="l-btn-text">▶ Normalizar Lugares</span>
+        </button>
+        <div class="alert-ok" id="l-alert">✅ ¡Normalización completada!</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Estadísticas</div>
+        <div class="stats">
+          <div class="stat blue"><div class="stat-val" id="l-raw">–</div><div class="stat-label">Registros originales</div></div>
+          <div class="stat red"><div class="stat-val" id="l-dups">–</div><div class="stat-label">Duplicados eliminados</div></div>
+          <div class="stat green"><div class="stat-val" id="l-ok">–</div><div class="stat-label">Lugares únicos</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Log de Cambios (LOG_LUGARES)</div>
+        <div class="log-wrap" id="l-log"><div class="log-empty">El log aparecerá aquí tras normalizar</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⬇️ Descargar Resultados</div>
+        <div class="downloads">
+          <a class="btn-dl green" href="/descargar/lugares/csv" id="l-dl-csv">📊 DIRECCIONES_NORM.csv</a>
+          <a class="btn-dl blue"  href="/descargar/lugares/log" id="l-dl-log">📋 LOG de Cambios</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Derecha: Tabla resultado -->
+    <div class="card" style="align-self:start">
+      <div class="card-title">✅ Resultado — Lugares + Georeferencias + Direcciones</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Lugar</th>
+              <th>Lat / Lng</th>
+              <th>Calle</th>
+              <th>Ciudad/Estado</th>
+              <th>País</th>
+            </tr>
+          </thead>
+          <tbody id="l-tbody">
+            <tr><td class="empty-td" colspan="6">Carga un archivo y presiona Normalizar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script>
+  // ── Cambiar pestaña ──
+  function cambiarTab(nombre, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + nombre).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ══════════════════════════════════════
+  // EJERCICIO I — FAMOSOS
+  // ══════════════════════════════════════
+  setupEjercicio({
+    dropId    : 'f-drop',
+    inputId   : 'f-input',
+    fileNameId: 'f-filename',
+    btnId     : 'f-btn',
+    btnTextId : 'f-btn-text',
+    spinnerId : 'f-spinner',
+    alertId   : 'f-alert',
+    step1Id   : 'f-step1',
+    step2Id   : 'f-step2',
+    step3Id   : 'f-step3',
+    endpoint  : '/procesar/famosos',
+    onSuccess : renderFamosos,
+    dlIds     : ['f-dl-csv', 'f-dl-log'],
+    statIds   : { raw:'f-raw', dups:'f-dups', inv:'f-inv', ok:'f-ok' },
+    logId     : 'f-log',
+    logRender : renderLogFamosos
+  });
+
+  function renderFamosos(data) {
+    // Estadísticas — nombres actualizados al backend simplificado
+    document.getElementById('f-raw').textContent  = data.stats.total_original;
+    document.getElementById('f-dups').textContent = data.stats.total_duplicados;
+    document.getElementById('f-inv').textContent  = data.stats.total_invalidos;
+    document.getElementById('f-ok').textContent   = data.stats.total_ok;
+
+    // Tabla FAMOSOS_NORM
+    const tbody = document.getElementById('f-tbody');
+    if (!data.famosos.length) {
+      tbody.innerHTML = '<tr><td class="empty-td" colspan="5">Sin resultados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.famosos.map(f => `
+      <tr>
+        <td>${f.id}</td>
+        <td>${esc(f.nombre)}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem">${esc(f.fecha_nacimiento)}</td>
+        <td style="text-align:center">${f.edad !== '–' ? f.edad : '<span style="color:#9ca3af">–</span>'}</td>
+        <td>${f.es_cumpleanos
+          ? '<span class="flag-si">🎂 HOY</span>'
+          : '<span class="flag-no">–</span>'}</td>
+      </tr>
+    `).join('');
+
+    renderLogFamosos(data.log);
+  }
+
+  function renderLogFamosos(log) {
+    const wrap = document.getElementById('f-log');
+    if (!log.length) { wrap.innerHTML = '<div class="log-empty">Sin cambios registrados</div>'; return; }
+    wrap.innerHTML = log.map(l => {
+      const [cls, label] = tagFamosos(l.tipo);
+      return `<div class="log-item">
+        <span class="log-tag ${cls}">${label}</span>
+        <span style="color:#9ca3af;font-size:.68rem">L${l.linea}</span>
+        <span style="color:#ef4444;text-decoration:line-through">${esc(String(l.antes || '').trim())}</span>
+        <span class="log-arr">→</span>
+        <span class="log-after">${esc(String(l.despues || '').trim())}</span>
+      </div>`;
+    }).join('');
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function tagFamosos(tipo) {
+    if (tipo.includes('DUPLICADO'))     return ['t-dup',   '✕ DUPLICADO'];
+    if (tipo.includes('FECHA'))         return ['t-fecha',  '📅 FECHA'];
+    if (tipo.includes('NUMERACION'))    return ['t-num',    '# NUM'];
+    return ['t-inv', tipo];
+  }
+
+  // ══════════════════════════════════════
+  // EJERCICIO II — LUGARES
+  // ══════════════════════════════════════
+  setupEjercicio({
+    dropId    : 'l-drop',
+    inputId   : 'l-input',
+    fileNameId: 'l-filename',
+    btnId     : 'l-btn',
+    btnTextId : 'l-btn-text',
+    spinnerId : 'l-spinner',
+    alertId   : 'l-alert',
+    step1Id   : 'l-step1',
+    step2Id   : 'l-step2',
+    step3Id   : 'l-step3',
+    endpoint  : '/procesar/lugares',
+    onSuccess : renderLugares,
+    dlIds     : ['l-dl-csv', 'l-dl-log'],
+    logId     : 'l-log',
+    logRender : renderLogLugares
+  });
+
+  function renderLugares(data) {
+    document.getElementById('l-raw').textContent  = data.stats.total_original;
+    document.getElementById('l-dups').textContent = data.stats.total_duplicados;
+    document.getElementById('l-ok').textContent   = data.stats.total_ok;
+
+    const tbody = document.getElementById('l-tbody');
+    if (!data.lugares.length) {
+      tbody.innerHTML = '<tr><td class="empty-td" colspan="6">Sin resultados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.lugares.map(l => `
+      <tr>
+        <td>${l.id}</td>
+        <td><strong>${esc(l.nombre)}</strong></td>
+        <td class="georef">${l.lat !== null ? l.lat.toFixed(4) : '–'}<br>${l.lng !== null ? l.lng.toFixed(4) : '–'}</td>
+        <td>${esc(l.numero !== '–' ? l.numero + ' ' + l.calle : l.calle)}</td>
+        <td>${esc(l.ciudad)}</td>
+        <td>${esc(l.pais)}</td>
+      </tr>
+    `).join('');
+
+    renderLogLugares(data.log);
+  }
+
+  function renderLogLugares(log) {
+    const wrap = document.getElementById('l-log');
+    if (!log.length) { wrap.innerHTML = '<div class="log-empty">Sin cambios registrados</div>'; return; }
+    wrap.innerHTML = log.map(l => `
+      <div class="log-item">
+        <span class="log-tag ${l.tipo.includes('DUPLICADO') ? 't-dup' : 't-lugar'}">${l.tipo.includes('DUPLICADO') ? '✕ DUPLICADO' : '⚠ AVISO'}</span>
+        <span>${esc(String(l.detalle || '').trim())}</span>
+      </div>
+    `).join('');
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  // ══════════════════════════════════════
+  // HELPER GENÉRICO: configurar ejercicio
+  // ══════════════════════════════════════
+  function setupEjercicio(cfg) {
+    const drop    = document.getElementById(cfg.dropId);
+    const input   = document.getElementById(cfg.inputId);
+    const fnEl    = document.getElementById(cfg.fileNameId);
+    const btn     = document.getElementById(cfg.btnId);
+    const btnText = document.getElementById(cfg.btnTextId);
+    const spinner = document.getElementById(cfg.spinnerId);
+    const alert   = document.getElementById(cfg.alertId);
+    let archivo   = null;
+
+    input.addEventListener('change', () => { if (input.files[0]) set(input.files[0]); });
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) set(e.dataTransfer.files[0]); });
+
+    function set(f) {
+      archivo = f;
+      fnEl.textContent = '✅ ' + f.name;
+      fnEl.style.display = 'block';
+      btn.disabled = false;
+      document.getElementById(cfg.step1Id).classList.replace('active','done');
+      document.getElementById(cfg.step2Id).classList.remove('pending');
+      document.getElementById(cfg.step2Id).classList.add('active');
+    }
+
+    btn.addEventListener('click', async () => {
+      if (!archivo) return;
+      spinner.style.display = 'block';
+      btnText.textContent = 'Procesando...';
+      btn.disabled = true;
+      alert.style.display = 'none';
+
+      const form = new FormData();
+      form.append('archivo', archivo);
+
+      try {
+        const res  = await fetch(cfg.endpoint, { method:'POST', body:form });
+        const data = await res.json();
+        if (data.error) { window.alert('❌ ' + data.error); return; }
+
+        cfg.onSuccess(data);
+        cfg.dlIds.forEach(id => document.getElementById(id).classList.add('on'));
+        alert.style.display = 'flex';
+        document.getElementById(cfg.step2Id).classList.replace('active','done');
+        document.getElementById(cfg.step3Id).classList.remove('pending');
+        document.getElementById(cfg.step3Id).classList.add('active');
+      } catch(e) {
+        window.alert('❌ Error: ' + e.message);
+      } finally {
+        spinner.style.display = 'none';
+        btnText.textContent = btn.textContent.includes('Famosos') ? '▶ Normalizar Famosos' : '▶ Normalizar Lugares';
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function esc(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
