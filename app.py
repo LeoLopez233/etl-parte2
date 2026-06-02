@@ -713,6 +713,49 @@ def descargar_log_lugares():
 
     return send_file(ruta, as_attachment=True)
 
+# =============================================================
+# PARTE 3 — MÓDULO III: MAPA DE LUGARES HISTÓRICOS
+# =============================================================
+
+@app.route("/lugares/mapa")
+def ruta_mapa_lugares():
+    """
+    Devuelve todos los lugares con coordenadas para el mapa.
+    Lee directamente desde la base de datos ya procesada.
+    """
+    try:
+        conn = sqlite3.connect(DB_LUGARES)
+        c = conn.cursor()
+        c.execute("""
+            SELECT l.id, l.nombre, g.latitud, g.longitud,
+                   d.nombre_calle, d.numero_calle,
+                   d.ciudad_estado_provincia, d.pais
+            FROM Lugares l
+            LEFT JOIN Georeferencias g ON g.lugar_id = l.id
+            LEFT JOIN Direcciones d    ON d.lugar_id = l.id
+            WHERE g.latitud IS NOT NULL AND g.longitud IS NOT NULL
+            ORDER BY l.nombre
+        """)
+        filas = c.fetchall()
+        conn.close()
+
+        lugares = []
+        for f in filas:
+            lugares.append({
+                "id"    : f[0],
+                "nombre": f[1],
+                "lat"   : f[2],
+                "lng"   : f[3],
+                "calle" : f[4] or "",
+                "numero": f[5] or "",
+                "ciudad": f[6] or "",
+                "pais"  : f[7] or ""
+            })
+
+        return jsonify({"lugares": lugares})
+
+    except Exception as e:
+        return jsonify({"error": str(e), "lugares": []})
 
 # =============================================================
 # INICIAR EL SERVIDOR
